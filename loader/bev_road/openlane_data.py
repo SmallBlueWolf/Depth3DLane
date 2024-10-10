@@ -13,6 +13,7 @@ from utils.standard_camera_cpu import Standard_camera
 
 class OpenLane_dataset_with_offset(Dataset):
     def __init__(self, image_paths, 
+                   depth_image_paths,
                    gt_paths,
                    x_range,
                    y_range, 
@@ -25,6 +26,7 @@ class OpenLane_dataset_with_offset(Dataset):
         self.y_range = y_range
         self.meter_per_pixel = meter_per_pixel
         self.image_paths = image_paths
+        self.depth_image_paths = depth_image_paths
         self.gt_paths = gt_paths
         self.cnt_list = []
         self.lane3d_thick = 1
@@ -104,9 +106,9 @@ class OpenLane_dataset_with_offset(Dataset):
             z_points = function2(base_points)
             res_lane_points[idx] = np.array([base_points, y_points])  #
             res_lane_points_z[idx] = np.array([base_points, z_points])
-            res_lane_points_bin[idx] = np.array([base_points_bin, y_points_bin]).astype(np.int)
+            res_lane_points_bin[idx] = np.array([base_points_bin, y_points_bin]).astype(np.int64)
             res_lane_points_set[idx] = np.array([base_points, y_points]).astype(
-                np.int)
+                np.int64)
 
         offset_map = np.zeros((self.ipm_h, self.ipm_w))
         z_map = np.zeros((self.ipm_h, self.ipm_w))
@@ -136,7 +138,11 @@ class OpenLane_dataset_with_offset(Dataset):
     def get_seg_offset(self, idx, smooth=False):
         gt_path = os.path.join(self.gt_paths, self.cnt_list[idx][0], self.cnt_list[idx][1])
         image_path = os.path.join(self.image_paths, self.cnt_list[idx][0], self.cnt_list[idx][1].replace('json', 'jpg'))
+        dep_image_path = os.path.join(self.depth_image_paths, self.cnt_list[idx][0], self.cnt_list[idx][1].replace('json', 'png'))
+        
         image = cv2.imread(image_path)
+        dep_image = cv2.imread(dep_image_path, cv2.IMREAD_GRAYSCALE)
+        
         image_h, image_w, _ = image.shape
         with open(gt_path, 'r') as f:
             gt = json.load(f)
@@ -176,7 +182,7 @@ class OpenLane_dataset_with_offset(Dataset):
             lane_ego = cam_w_extrinsics @ lane_camera_w  #
             ''' plot uv '''
             uv1 = ego2image(lane_ego[:3], cam_intrinsic, cam_extrinsics)
-            cv2.polylines(image_gt, [uv1[0:2, :].T.astype(np.int)], False, idx + 1, self.lane2d_thick)
+            cv2.polylines(image_gt, [uv1[0:2, :].T.astype(np.int64)], False, idx + 1, self.lane2d_thick)
 
             distance = np.sqrt((lane_ego_persformer[1][0] - lane_ego_persformer[1][-1]) ** 2 + (
                     lane_ego_persformer[0][0] - lane_ego_persformer[0][-1]) ** 2)
@@ -221,16 +227,26 @@ class OpenLane_dataset_with_offset(Dataset):
             trans_matrix = sc.get_matrix(height=0)
             image = cv2.warpPerspective(image, trans_matrix, self.vc_image_shape)
             image_gt = cv2.warpPerspective(image_gt, trans_matrix, self.vc_image_shape)
-        return image, image_gt, ipm_gt, offset_y_map, z_map, cam_extrinsics, cam_intrinsic
+            dep_image = cv2.warpPerspective(dep_image, trans_matrix, self.vc_image_shape)
+            
+        return image, dep_image, image_gt, ipm_gt, offset_y_map, z_map, cam_extrinsics, cam_intrinsic
 
     def __getitem__(self, idx):
         '''
         :param idx:
         :return:
         '''
-        image, image_gt, ipm_gt, offset_y_map, z_map, cam_extrinsics, cam_intrinsic = self.get_seg_offset(idx)
+        image, dep_image, image_gt, ipm_gt, offset_y_map, z_map, cam_extrinsics, cam_intrinsic = self.get_seg_offset(idx)
+        
         transformed = self.trans_image(image=image)
         image = transformed["image"]
+        
+        transformed = self.trans_image(image=dep_image)
+        dep_image = transformed["image"]
+
+        combined_image = torch.cat((image, dep_image), dim=0)
+        image = combined_image
+        
         ''' 2d gt'''
         image_gt = cv2.resize(image_gt, (self.output2d_size[1], self.output2d_size[0]), interpolation=cv2.INTER_NEAREST)
         image_gt_instance = torch.tensor(image_gt).unsqueeze(0)  # h, w, c

@@ -1,5 +1,5 @@
 import sys
-sys.path.append('/mnt/ve_perception/wangruihao/code/BEV-LaneDet')
+sys.path.append('/media/bluewolf/Data/bluewolf/projs/Depth3DLane')
 import torch
 from torch.optim.lr_scheduler import CosineAnnealingLR
 from torch.utils.data import DataLoader
@@ -93,7 +93,7 @@ def train_epoch(model, dataset, optimizer, configs, epoch):
 
 
 def worker_function(config_file, gpu_id, checkpoint_path=None):
-    print('use gpu ids is'+','.join([str(i) for i in gpu_id]))
+    print('use gpu ids is '+','.join([str(i) for i in gpu_id]))
     configs = load_config_module(config_file)
 
     ''' models and optimizer '''
@@ -138,4 +138,4 @@ def worker_function(config_file, gpu_id, checkpoint_path=None):
 if __name__ == '__main__':
     import warnings
     warnings.filterwarnings("ignore")
-    worker_function('./openlane_config.py', gpu_id=[4, 5, 6, 7])
+    worker_function('./openlane_config.py', gpu_id=[0])

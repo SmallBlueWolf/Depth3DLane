@@ -289,7 +289,8 @@ class BEV_LaneDet(nn.Module):  # BEV-LaneDet
     def __init__(self, bev_shape, output_2d_shape, train=True):
         super(BEV_LaneDet, self).__init__()
         self.bb = nn.Sequential(*list(tv.models.resnet34(pretrained=True).children())[:-2])
-
+        self.bb[0] = nn.Conv2d(4, 64, kernel_size=7, stride=2, padding=3, bias=False)
+        
         self.down = naive_init_module(
             Residual(
                 module=nn.Sequential(

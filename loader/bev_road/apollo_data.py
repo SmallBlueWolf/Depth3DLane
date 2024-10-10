@@ -187,7 +187,7 @@ class Apollo_dataset_with_offset(Dataset):
             lane_image = camera_k @ lane_camera[:3]
             lane_image = lane_image / lane_image[2]
             lane_uv = lane_image[:2].T
-            cv2.polylines(image_gt, [lane_uv.astype(np.int)], False, lane_idx + 1, 3)
+            cv2.polylines(image_gt, [lane_uv.astype(np.int64)], False, lane_idx + 1, 3)
             x, y, z = lane_ground[1], -1 * lane_ground[0], lane_ground[2]
             ground_points = np.array([x, y])
             ipm_points = np.linalg.inv(matrix_IPM2ego[:, :2]) @ (

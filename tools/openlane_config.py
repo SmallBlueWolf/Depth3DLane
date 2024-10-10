@@ -7,12 +7,15 @@ from loader.bev_road.openlane_data import OpenLane_dataset_with_offset,OpenLane_
 from models.model.single_camera_bev import BEV_LaneDet
 
 ''' data split '''
-train_gt_paths = '/dataset/openlane/lane3d_1000/training'
-train_image_paths = '/dataset/openlane/images/training'
-val_gt_paths = '/dataset/openlane/lane3d_1000/validation'
-val_image_paths = '/dataset/openlane/images/validation'
+train_gt_paths = '../data/lane3d_1000/training'
+train_image_paths = '../data/images/training'
 
-model_save_path = "/dataset/model/openlane"
+depth_image_paths = '../data/images(depth)/training'
+
+val_gt_paths = '../data/lane3d_1000/validation'
+val_image_paths = '../data/images/validation'
+
+model_save_path = "../results/openlane"
 
 input_shape = (576,1024)
 output_2d_shape = (144,256)
@@ -24,7 +27,7 @@ meter_per_pixel = 0.5 # grid size
 bev_shape = (int((x_range[1] - x_range[0]) / meter_per_pixel),int((y_range[1] - y_range[0]) / meter_per_pixel))
 
 loader_args = dict(
-    batch_size=64,
+    batch_size=2,
     num_workers=12,
     shuffle=True
 )
@@ -68,7 +71,7 @@ def train_dataset():
                     A.Normalize(),
                     ToTensorV2()
                     ])
-    train_data = OpenLane_dataset_with_offset(train_image_paths, train_gt_paths, 
+    train_data = OpenLane_dataset_with_offset(train_image_paths, depth_image_paths, train_gt_paths, 
                                               x_range, y_range, meter_per_pixel, 
                                               train_trans, output_2d_shape, vc_config)
 
