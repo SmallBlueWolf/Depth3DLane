@@ -266,10 +266,11 @@ class OpenLane_dataset_with_offset(Dataset):
 
 
 class OpenLane_dataset_with_offset_val(Dataset):
-    def __init__(self, image_paths, 
+    def __init__(self, image_paths, depth_val_image_path,
                  gt_paths,
                  data_trans,
                  virtual_camera_config):
+        self.dep_paths = depth_val_image_path
         self.image_paths = image_paths
         self.gt_paths = gt_paths
 
@@ -296,6 +297,8 @@ class OpenLane_dataset_with_offset_val(Dataset):
         '''get image '''
         gt_path = os.path.join(self.gt_paths, self.cnt_list[idx][0], self.cnt_list[idx][1])
         image_path = os.path.join(self.image_paths, self.cnt_list[idx][0], self.cnt_list[idx][1].replace('json', 'jpg'))
+        dep_path = os.path.join(self.dep_paths, self.cnt_list[idx][0], self.cnt_list[idx][1].replace('json', 'png'))
+        
         image = cv2.imread(image_path)
         with open(gt_path, 'r') as f:
             gt = json.load(f)
@@ -308,15 +311,24 @@ class OpenLane_dataset_with_offset_val(Dataset):
 
         cam_intrinsic = np.array(gt['intrinsic'])
 
+        depth_img = cv2.imread(dep_path, cv2.IMREAD_GRAYSCALE)
+
         if self.use_virtual_camera:
             sc = Standard_camera(self.vc_intrinsic, self.vc_extrinsics, self.vc_image_shape,
                                  cam_intrinsic, cam_extrinsics, (image.shape[0], image.shape[1]))
             trans_matrix = sc.get_matrix(height=0)
             image = cv2.warpPerspective(image, trans_matrix, self.vc_image_shape)
+            depth_img = cv2.warpPerspective(depth_img, trans_matrix, self.vc_image_shape)
 
 
         transformed = self.trans_image(image=image)
         image = transformed["image"]
+        
+        transformed = self.trans_image(image=depth_img)
+        depth_img = transformed['image']
+        
+        image = torch.cat((image, depth_img), dim=0)
+        
         return image, self.cnt_list[idx]
 
     def __len__(self):

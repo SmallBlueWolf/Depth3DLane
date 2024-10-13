@@ -225,7 +225,7 @@ class Visualizer:
                     x_2d, y_2d = projective_transformation(P_g2im, x_3d, self.anchor_y_steps, z_3d)
                 visibility = lane_anchor[j, 2 * self.num_y_steps:3 * self.num_y_steps]
                 if not self.use_default_anchor:
-                    anchor_x_2d = anchor_x_2d.astype(np.int)
+                    anchor_x_2d = anchor_x_2d.astype(np.int64)
                 
                 x_2d = [x for i, x in enumerate(x_2d) if visibility[i] > self.prob_th]
                 y_2d = [y for i, y in enumerate(y_2d) if visibility[i] > self.prob_th]
@@ -309,7 +309,7 @@ class Visualizer:
                     x_2d, y_2d = projective_transformation(P_g2im, x_3d, self.anchor_y_steps, z_3d)
                 visibility = lane_anchor[j, 2 * self.num_y_steps:3 * self.num_y_steps]
                 if not self.use_default_anchor:
-                    anchor_x_2d = anchor_x_2d.astype(np.int)
+                    anchor_x_2d = anchor_x_2d.astype(np.int64)
                 
                 x_2d = [x for i, x in enumerate(x_2d) if visibility[i] > self.prob_th]
                 y_2d = [y for i, y in enumerate(y_2d) if visibility[i] > self.prob_th]
@@ -624,7 +624,7 @@ class Visualizer:
         return fig
 
     def save_result_new(self, dataset, train_or_val, epoch, idx, images, gt, pred, pred_cam_pitch, pred_cam_height,
-                        aug_mat=np.identity(3, dtype=np.float), evaluate=False,
+                        aug_mat=np.identity(3, dtype=np.float64), evaluate=False,
                         laneatt_gt=None, laneatt_pred=None, laneatt_pos_anchor=None, intrinsics=None, extrinsics=None, seg_name=None, img_name = None):
         if not dataset.data_aug:
             aug_mat = np.repeat(np.expand_dims(aug_mat, axis=0), idx.shape[0], axis=0)
