@@ -15,6 +15,8 @@ depth_image_paths = '../data/images(depth)/training'
 val_gt_paths = '../data/lane3d_1000/validation'
 val_image_paths = '../data/images/validation'
 
+depth_val_image_path = '../data/images(depth)/validation'
+
 model_save_path = "../results/openlane"
 
 input_shape = (576,1024)
@@ -27,7 +29,7 @@ meter_per_pixel = 0.5 # grid size
 bev_shape = (int((x_range[1] - x_range[0]) / meter_per_pixel),int((y_range[1] - y_range[0]) / meter_per_pixel))
 
 loader_args = dict(
-    batch_size=2,
+    batch_size=8,
     num_workers=12,
     shuffle=True
 )
@@ -83,7 +85,7 @@ def val_dataset():
         A.Resize(height=input_shape[0], width=input_shape[1]),
         A.Normalize(),
         ToTensorV2()])
-    val_data = OpenLane_dataset_with_offset_val(val_image_paths,val_gt_paths,
+    val_data = OpenLane_dataset_with_offset_val(val_image_paths, depth_val_image_path, val_gt_paths,
                                                 trans_image,vc_config)
     return val_data
 
