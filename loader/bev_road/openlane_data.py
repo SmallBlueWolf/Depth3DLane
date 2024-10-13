@@ -139,7 +139,7 @@ class OpenLane_dataset_with_offset(Dataset):
         gt_path = os.path.join(self.gt_paths, self.cnt_list[idx][0], self.cnt_list[idx][1])
         image_path = os.path.join(self.image_paths, self.cnt_list[idx][0], self.cnt_list[idx][1].replace('json', 'jpg'))
         dep_image_path = os.path.join(self.depth_image_paths, self.cnt_list[idx][0], self.cnt_list[idx][1].replace('json', 'png'))
-        
+
         image = cv2.imread(image_path)
         dep_image = cv2.imread(dep_image_path, cv2.IMREAD_GRAYSCALE)
         
@@ -244,9 +244,10 @@ class OpenLane_dataset_with_offset(Dataset):
         transformed = self.trans_image(image=dep_image)
         dep_image = transformed["image"]
 
-        combined_image = torch.cat((image, dep_image), dim=0)
-        image = combined_image
-        
+        # combined_image = torch.cat((image, dep_image), dim=0) # 这里不需要四通道了
+        # image = combined_image
+        ''' depth gt'''
+        depth_gt = torch.tensor(dep_image, dtype=torch.float32).unsqueeze(0)  # (1, 576, 1024)
         ''' 2d gt'''
         image_gt = cv2.resize(image_gt, (self.output2d_size[1], self.output2d_size[0]), interpolation=cv2.INTER_NEAREST)
         image_gt_instance = torch.tensor(image_gt).unsqueeze(0)  # h, w, c
@@ -259,7 +260,7 @@ class OpenLane_dataset_with_offset(Dataset):
         ipm_gt_segment = torch.clone(ipm_gt_instance)
         ipm_gt_segment[ipm_gt_segment > 0] = 1
 
-        return image, ipm_gt_segment.float(), ipm_gt_instance.float(), ipm_gt_offset.float(), ipm_gt_z.float(), image_gt_segment.float(), image_gt_instance.float()
+        return image, ipm_gt_segment.float(), ipm_gt_instance.float(), ipm_gt_offset.float(), ipm_gt_z.float(), image_gt_segment.float(), image_gt_instance.float(), depth_gt.float()
 
     def __len__(self):
         return len(self.cnt_list)
@@ -298,7 +299,7 @@ class OpenLane_dataset_with_offset_val(Dataset):
         gt_path = os.path.join(self.gt_paths, self.cnt_list[idx][0], self.cnt_list[idx][1])
         image_path = os.path.join(self.image_paths, self.cnt_list[idx][0], self.cnt_list[idx][1].replace('json', 'jpg'))
         dep_path = os.path.join(self.dep_paths, self.cnt_list[idx][0], self.cnt_list[idx][1].replace('json', 'png'))
-        
+
         image = cv2.imread(image_path)
         with open(gt_path, 'r') as f:
             gt = json.load(f)
@@ -323,12 +324,12 @@ class OpenLane_dataset_with_offset_val(Dataset):
 
         transformed = self.trans_image(image=image)
         image = transformed["image"]
-        
+
         transformed = self.trans_image(image=depth_img)
         depth_img = transformed['image']
-        
+
         image = torch.cat((image, depth_img), dim=0)
-        
+
         return image, self.cnt_list[idx]
 
     def __len__(self):
