@@ -7,17 +7,28 @@ from loader.bev_road.openlane_data import OpenLane_dataset_with_offset,OpenLane_
 from models.model.single_camera_bev import BEV_LaneDet
 
 ''' data split '''
-train_gt_paths = '../data/lane3d_1000/training'
-train_image_paths = '../data/images/training'
+# train_gt_paths = '../data/lane3d_1000/training'
+# train_image_paths = '../data/images/training'
+#
+# depth_image_paths = '../data/images(depth)/training'
+#
+# val_gt_paths = '../data/lane3d_1000/validation'
+# val_image_paths = '../data/images/validation'
+#
+# depth_val_image_path = '../data/images(depth)/validation'
+#
+# model_save_path = "../results/openlane"
+train_gt_paths = '/mnt/d/github/3D-Lane-Detection/dataset/OpenLane/lane3d_1000/training'
+train_image_paths = '/mnt/d/github/3D-Lane-Detection/dataset/OpenLane/images/training'
 
-depth_image_paths = '../data/images(depth)/training'
+depth_image_paths = '/mnt/d/github/3D-Lane-Detection/dataset/OpenLane/lane3d_1000/training'
 
-val_gt_paths = '../data/lane3d_1000/validation'
-val_image_paths = '../data/images/validation'
+val_gt_paths = '/mnt/d/github/3D-Lane-Detection/dataset/OpenLane/lane3d_1000/validation'
+val_image_paths = '/mnt/d/github/3D-Lane-Detection/dataset/OpenLane/images/validation'
 
-depth_val_image_path = '../data/images(depth)/validation'
+depth_val_image_path = '/mnt/d/github/3D-Lane-Detection/dataset/OpenLane/images(depth)/validation'
 
-model_save_path = "../results/openlane"
+model_save_path = "/mnt/d/github/3D-Lane-Detection/dataset/OpenLane/results/openlane"
 
 input_shape = (576,1024)
 output_2d_shape = (144,256)

@@ -7,6 +7,8 @@ import numpy as np
 import torch
 from scipy.interpolate import interp1d
 from torch.utils.data import Dataset
+
+from tools.val_apollo import config_file
 from utils.coord_util import ego2image,IPM2ego_matrix
 from utils.standard_camera_cpu import Standard_camera
 
@@ -138,7 +140,7 @@ class OpenLane_dataset_with_offset(Dataset):
     def get_seg_offset(self, idx, smooth=False):
         gt_path = os.path.join(self.gt_paths, self.cnt_list[idx][0], self.cnt_list[idx][1])
         image_path = os.path.join(self.image_paths, self.cnt_list[idx][0], self.cnt_list[idx][1].replace('json', 'jpg'))
-        dep_image_path = os.path.join(self.depth_image_paths, self.cnt_list[idx][0], self.cnt_list[idx][1].replace('json', 'png'))
+        dep_image_path = os.path.join(self.depth_image_paths, self.cnt_list[idx][0], self.cnt_list[idx][1].replace('json', 'jpg'))
 
         image = cv2.imread(image_path)
         dep_image = cv2.imread(dep_image_path, cv2.IMREAD_GRAYSCALE)
@@ -298,7 +300,7 @@ class OpenLane_dataset_with_offset_val(Dataset):
         '''get image '''
         gt_path = os.path.join(self.gt_paths, self.cnt_list[idx][0], self.cnt_list[idx][1])
         image_path = os.path.join(self.image_paths, self.cnt_list[idx][0], self.cnt_list[idx][1].replace('json', 'jpg'))
-        dep_path = os.path.join(self.dep_paths, self.cnt_list[idx][0], self.cnt_list[idx][1].replace('json', 'png'))
+        dep_path = os.path.join(self.dep_paths, self.cnt_list[idx][0], self.cnt_list[idx][1].replace('json', 'jpg'))
 
         image = cv2.imread(image_path)
         with open(gt_path, 'r') as f:
@@ -339,7 +341,8 @@ class OpenLane_dataset_with_offset_val(Dataset):
 if __name__ == "__main__":
     ''' parameter from config '''
     from utils.config_util import load_config_module
-    config_file = '/mnt/ve_perception/wangruihao/code/BEV-LaneDet/tools/openlane_config.py'
+    # config_file = '/mnt/d/wangruihao/code/BEV-LaneDet/tools/openlane_config.py'
+    config_file = '/mnt/d/github/Depth3DLane/tools/openlane_config.py'
     configs = load_config_module(config_file)
     dataset = configs.val_dataset()
     for item in dataset:
