@@ -1,6 +1,5 @@
 import sys
-# sys.path.append('/media/bluewolf/Data/bluewolf/projs/Depth3DLane')
-sys.path.append('/mnt/d/github/Depth3DLane')
+sys.path.append('/media/bluewolf/Data/bluewolf/projs/depth_label/Depth3DLane')
 import torch
 from torch.optim.lr_scheduler import CosineAnnealingLR
 from torch.utils.data import DataLoader
@@ -12,6 +11,9 @@ from utils.config_util import load_config_module
 from sklearn.metrics import f1_score
 import numpy as np
 import pytorch_ssim
+import os
+
+os.chdir("/media/bluewolf/Data/bluewolf/projs/depth_label/Depth3DLane/tools")
 
 class GradientLoss(nn.Module):
     """
