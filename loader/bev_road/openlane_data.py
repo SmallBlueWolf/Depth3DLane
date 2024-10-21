@@ -247,7 +247,8 @@ class OpenLane_dataset_with_offset(Dataset):
         # combined_image = torch.cat((image, dep_image), dim=0) # 这里不需要四通道了
         # image = combined_image
         ''' depth gt'''
-        depth_gt = torch.tensor(dep_image, dtype=torch.float32).unsqueeze(0)  # (1, 576, 1024)
+        depth_gt = torch.tensor(dep_image, dtype=torch.float32)  # (1, 576, 1024)
+        
         ''' 2d gt'''
         image_gt = cv2.resize(image_gt, (self.output2d_size[1], self.output2d_size[0]), interpolation=cv2.INTER_NEAREST)
         image_gt_instance = torch.tensor(image_gt).unsqueeze(0)  # h, w, c
@@ -312,23 +313,23 @@ class OpenLane_dataset_with_offset_val(Dataset):
 
         cam_intrinsic = np.array(gt['intrinsic'])
 
-        depth_img = cv2.imread(dep_path, cv2.IMREAD_GRAYSCALE)
+        # depth_img = cv2.imread(dep_path, cv2.IMREAD_GRAYSCALE)
 
         if self.use_virtual_camera:
             sc = Standard_camera(self.vc_intrinsic, self.vc_extrinsics, self.vc_image_shape,
                                  cam_intrinsic, cam_extrinsics, (image.shape[0], image.shape[1]))
             trans_matrix = sc.get_matrix(height=0)
             image = cv2.warpPerspective(image, trans_matrix, self.vc_image_shape)
-            depth_img = cv2.warpPerspective(depth_img, trans_matrix, self.vc_image_shape)
+            # depth_img = cv2.warpPerspective(depth_img, trans_matrix, self.vc_image_shape)
 
 
         transformed = self.trans_image(image=image)
         image = transformed["image"]
 
-        transformed = self.trans_image(image=depth_img)
-        depth_img = transformed['image']
+        # transformed = self.trans_image(image=depth_img)
+        # depth_img = transformed['image']
 
-        image = torch.cat((image, depth_img), dim=0)
+        # image = torch.cat((image, depth_img), dim=0)
 
         return image, self.cnt_list[idx]
 

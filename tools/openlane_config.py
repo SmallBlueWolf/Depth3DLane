@@ -5,17 +5,18 @@ from torch.optim.lr_scheduler import CosineAnnealingLR
 import numpy as np
 from loader.bev_road.openlane_data import OpenLane_dataset_with_offset,OpenLane_dataset_with_offset_val
 from models.model.single_camera_bev import BEV_LaneDet
+import os
+
+data_base_dir = "/media/bluewolf/Data/bluewolf/projs/Depth3DLane"
 
 ''' data split '''
-train_gt_paths = '../data/lane3d_1000/training'
-train_image_paths = '../data/images/training'
+train_gt_paths = os.path.join(data_base_dir, 'data/lane3d_1000/training')
+train_image_paths = os.path.join(data_base_dir, 'data/images/training')
+depth_image_paths = os.path.join(data_base_dir, 'data/images(depth)/training')
 
-depth_image_paths = '../data/images(depth)/training'
-
-val_gt_paths = '../data/lane3d_1000/validation'
-val_image_paths = '../data/images/validation'
-
-depth_val_image_path = '../data/images(depth)/validation'
+val_gt_paths = os.path.join(data_base_dir, 'data/lane3d_1000/validation')
+val_image_paths = os.path.join(data_base_dir, 'data/images/validation')
+depth_val_image_path = os.path.join(data_base_dir, 'data/images(depth)/validation')
 
 model_save_path = "../results/openlane"
 
@@ -29,7 +30,7 @@ meter_per_pixel = 0.5 # grid size
 bev_shape = (int((x_range[1] - x_range[0]) / meter_per_pixel),int((y_range[1] - y_range[0]) / meter_per_pixel))
 
 loader_args = dict(
-    batch_size=8,
+    batch_size=16,
     num_workers=12,
     shuffle=True
 )
