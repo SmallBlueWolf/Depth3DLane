@@ -1,7 +1,7 @@
 import torch
 import torchvision as tv
 from torch import nn
-
+from .dpt import DepthAnythingV2
 
 def naive_init_module(mod):
     for m in mod.modules():
@@ -299,7 +299,6 @@ class BEV_LaneDet(nn.Module):  # BEV-LaneDet
                     nn.ReLU(),
                     nn.Conv2d(1024, 1024, kernel_size=3, stride=1, padding=1),
                     nn.BatchNorm2d(1024)
-
                 ),
                 downsample=nn.Conv2d(512, 1024, kernel_size=3, stride=2, padding=1),
             )
@@ -319,6 +318,8 @@ class BEV_LaneDet(nn.Module):  # BEV-LaneDet
         bev_64 = self.s64transformer(img_s64)
         bev = torch.cat([bev_64, bev_32], dim=1)
         if self.is_train:
-            return self.lane_head(bev), self.lane_head_2d(img_s32)
+            lane_output = self.lane_head(bev)
+            lane_output_2d = self.lane_head_2d(img_s32)
+            return lane_output, lane_output_2d, img_s32, img_s64  # Return feature maps
         else:
             return self.lane_head(bev)
