@@ -11,13 +11,25 @@ data_base_dir = "/media/bluewolf/Data/bluewolf/projs/Depth3DLane"
 
 ''' data split '''
 
-train_gt_paths = os.path.join(data_base_dir, 'data/lane3d_1000/training')
-train_image_paths = os.path.join(data_base_dir, 'data/images/training')
-depth_image_paths = os.path.join(data_base_dir, 'data/images(depth)/training')
+# train_gt_paths = os.path.join(data_base_dir, 'data/lane3d_1000/training')
+# train_image_paths = os.path.join(data_base_dir, 'data/images/training')
+# depth_image_paths = os.path.join(data_base_dir, 'data/images(depth)/training')
+#
+# val_gt_paths = os.path.join(data_base_dir, 'data/lane3d_1000/validation')
+# val_image_paths = os.path.join(data_base_dir, 'data/images/validation')
+# depth_val_image_path = os.path.join(data_base_dir, 'data/images(depth)/validation')
+#
+# model_save_path = "/mnt/d/github/3D-Lane-Detection/dataset/OpenLane/results/openlane"
 
-val_gt_paths = os.path.join(data_base_dir, 'data/lane3d_1000/validation')
-val_image_paths = os.path.join(data_base_dir, 'data/images/validation')
-depth_val_image_path = os.path.join(data_base_dir, 'data/images(depth)/validation')
+train_gt_paths = '/mnt/d/github/3D-Lane-Detection/dataset/OpenLane/lane3d_1000/training'
+train_image_paths = '/mnt/d/github/3D-Lane-Detection/dataset/OpenLane/images/training'
+
+depth_image_paths = '/mnt/d/github/3D-Lane-Detection/dataset/OpenLane/images/training'
+
+val_gt_paths = '/mnt/d/github/3D-Lane-Detection/dataset/OpenLane/lane3d_1000/validation'
+val_image_paths = '/mnt/d/github/3D-Lane-Detection/dataset/OpenLane/images/validation'
+
+depth_val_image_path = '/mnt/d/github/3D-Lane-Detection/dataset/OpenLane/images(depth)/validation'
 
 model_save_path = "/mnt/d/github/3D-Lane-Detection/dataset/OpenLane/results/openlane"
 
@@ -52,7 +64,7 @@ vc_config['vc_image_shape'] = (1920, 1280)
 
 ''' model '''
 def model():
-    return BEV_LaneDet(bev_shape=bev_shape, output_2d_shape=output_2d_shape,train=True)
+    return BEV_LaneDet(bev_shape=bev_shape, output_2d_shape=output_2d_shape,train=True, depth_label=False)
 
 
 ''' optimizer '''
@@ -77,7 +89,7 @@ def train_dataset():
                     ])
     train_data = OpenLane_dataset_with_offset(train_image_paths, depth_image_paths, train_gt_paths, 
                                               x_range, y_range, meter_per_pixel, 
-                                              train_trans, output_2d_shape, vc_config)
+                                              train_trans, output_2d_shape, vc_config, depth_label=False)
 
     return train_data
 

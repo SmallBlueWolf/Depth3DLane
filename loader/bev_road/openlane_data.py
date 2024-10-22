@@ -22,13 +22,28 @@ class OpenLane_dataset_with_offset(Dataset):
                    meter_per_pixel, 
                    data_trans,
                    output_2d_shape,
-                  virtual_camera_config):
+                   virtual_camera_config,
+                   depth_label=True):
+        """
 
+        :param image_paths:
+        :param depth_image_paths:
+        :param gt_paths:
+        :param x_range:
+        :param y_range:
+        :param meter_per_pixel:
+        :param data_trans:
+        :param output_2d_shape:
+        :param virtual_camera_config:
+        :param depth_label: 在微调时候需要设置为False
+        """
         self.x_range = x_range
         self.y_range = y_range
         self.meter_per_pixel = meter_per_pixel
         self.image_paths = image_paths
-        self.depth_image_paths = depth_image_paths
+        self.depth_label = depth_label
+        if self.depth_label:
+            self.depth_image_paths = depth_image_paths
         self.gt_paths = gt_paths
         self.cnt_list = []
         self.lane3d_thick = 1
@@ -140,10 +155,11 @@ class OpenLane_dataset_with_offset(Dataset):
     def get_seg_offset(self, idx, smooth=False):
         gt_path = os.path.join(self.gt_paths, self.cnt_list[idx][0], self.cnt_list[idx][1])
         image_path = os.path.join(self.image_paths, self.cnt_list[idx][0], self.cnt_list[idx][1].replace('json', 'jpg'))
-        dep_image_path = os.path.join(self.depth_image_paths, self.cnt_list[idx][0], self.cnt_list[idx][1].replace('json', 'jpg'))
-
         image = cv2.imread(image_path)
-        dep_image = cv2.imread(dep_image_path, cv2.IMREAD_GRAYSCALE)
+
+        if self.depth_label:
+            dep_image_path = os.path.join(self.depth_image_paths, self.cnt_list[idx][0], self.cnt_list[idx][1].replace('json', 'jpg'))
+            dep_image = cv2.imread(dep_image_path, cv2.IMREAD_GRAYSCALE)
         
         image_h, image_w, _ = image.shape
         with open(gt_path, 'r') as f:
@@ -229,27 +245,34 @@ class OpenLane_dataset_with_offset(Dataset):
             trans_matrix = sc.get_matrix(height=0)
             image = cv2.warpPerspective(image, trans_matrix, self.vc_image_shape)
             image_gt = cv2.warpPerspective(image_gt, trans_matrix, self.vc_image_shape)
-            dep_image = cv2.warpPerspective(dep_image, trans_matrix, self.vc_image_shape)
-            
-        return image, dep_image, image_gt, ipm_gt, offset_y_map, z_map, cam_extrinsics, cam_intrinsic
+            if self.depth_label:
+                dep_image = cv2.warpPerspective(dep_image, trans_matrix, self.vc_image_shape)
+                return image, dep_image, image_gt, ipm_gt, offset_y_map, z_map, cam_extrinsics, cam_intrinsic
+            else:
+                return image, image_gt, ipm_gt, offset_y_map, z_map, cam_extrinsics, cam_intrinsic
 
     def __getitem__(self, idx):
         '''
         :param idx:
         :return:
         '''
-        image, dep_image, image_gt, ipm_gt, offset_y_map, z_map, cam_extrinsics, cam_intrinsic = self.get_seg_offset(idx)
-        
+        if self.depth_label:
+            image, dep_image, image_gt, ipm_gt, offset_y_map, z_map, cam_extrinsics, cam_intrinsic = self.get_seg_offset(idx)
+
+            transformed = self.trans_image(image=dep_image)
+            dep_image = transformed["image"]
+
+            ''' depth gt'''
+            depth_gt = torch.tensor(dep_image, dtype=torch.float32)  # (1, 576, 1024)
+        else:
+            image, image_gt, ipm_gt, offset_y_map, z_map, cam_extrinsics, cam_intrinsic = self.get_seg_offset(idx)
+            depth_gt = None
+
         transformed = self.trans_image(image=image)
         image = transformed["image"]
-        
-        transformed = self.trans_image(image=dep_image)
-        dep_image = transformed["image"]
 
         # combined_image = torch.cat((image, dep_image), dim=0) # 这里不需要四通道了
         # image = combined_image
-        ''' depth gt'''
-        depth_gt = torch.tensor(dep_image, dtype=torch.float32)  # (1, 576, 1024)
         
         ''' 2d gt'''
         image_gt = cv2.resize(image_gt, (self.output2d_size[1], self.output2d_size[0]), interpolation=cv2.INTER_NEAREST)
@@ -263,7 +286,10 @@ class OpenLane_dataset_with_offset(Dataset):
         ipm_gt_segment = torch.clone(ipm_gt_instance)
         ipm_gt_segment[ipm_gt_segment > 0] = 1
 
-        return image, ipm_gt_segment.float(), ipm_gt_instance.float(), ipm_gt_offset.float(), ipm_gt_z.float(), image_gt_segment.float(), image_gt_instance.float(), depth_gt.float()
+        if depth_gt is not None:
+            return image, ipm_gt_segment.float(), ipm_gt_instance.float(), ipm_gt_offset.float(), ipm_gt_z.float(), image_gt_segment.float(), image_gt_instance.float(), depth_gt.float()
+        else:
+            return image, ipm_gt_segment.float(), ipm_gt_instance.float(), ipm_gt_offset.float(), ipm_gt_z.float(), image_gt_segment.float(), image_gt_instance.float()
 
     def __len__(self):
         return len(self.cnt_list)
