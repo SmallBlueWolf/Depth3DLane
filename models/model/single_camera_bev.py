@@ -415,7 +415,14 @@ class Residual(nn.Module):
 # 车道线检测头 (self.lane_head)，以 BEV 表示作为输入，输出表示检测到的车道线的张量。
 # 可选的 2D 图像车道线检测头 (self.lane_head_2d)，以 ResNet 骨干网络的输出作为输入，输出表示原始图像中检测到的车道线的张量。
 class BEV_LaneDet(nn.Module):
-    def __init__(self, bev_shape, output_2d_shape, train=True):
+    def __init__(self, bev_shape, output_2d_shape, train=True, depth_label=True):
+        """
+
+        :param bev_shape:
+        :param output_2d_shape:
+        :param train:
+        :param depth_label: 是否启用 depth auxiliary head
+        """
         super(BEV_LaneDet, self).__init__()
 
         # Custom ResNet34 Backbone with Skip Connections
@@ -438,9 +445,10 @@ class BEV_LaneDet(nn.Module):
         self.s32transformer = FCTransform_((512, 18, 32), (256, 25, 5))
         self.s64transformer = FCTransform_((1024, 9, 16), (256, 25, 5))
         self.lane_head = LaneHeadResidual_Instance_with_offset_z(bev_shape, input_channel=512)
-
+        self.depth_label = depth_label
         # Depth Head with Skip Connections
-        self.depth_head = DepthHeadUNet(in_channels=512, out_channels=1, base_channels=256)
+        if self.depth_label:
+            self.depth_head = DepthHeadUNet(in_channels=512, out_channels=1, base_channels=256)
 
         self.is_train = train
         if self.is_train:
@@ -461,8 +469,11 @@ class BEV_LaneDet(nn.Module):
         # Lane head predictions
         lane_outputs = self.lane_head(bev)  # (ms_new, me_new, m_offset_new, m_z)
 
-        # Depth prediction with skip connections
-        depth_map = self.depth_head(img_s32, skips)  # (B, 1, 576, 1024)
+        if self.depth_label:
+            # Depth prediction with skip connections
+            depth_map = self.depth_head(img_s32, skips)  # (B, 1, 576, 1024)
+        else:
+            depth_map = None
 
         if self.is_train:
             lane_2d_outputs = self.lane_head_2d(img_s32)  # (ms, me)
