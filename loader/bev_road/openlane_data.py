@@ -12,8 +12,7 @@ from utils.standard_camera_cpu import Standard_camera
 
 
 class OpenLane_dataset_with_offset(Dataset):
-    def __init__(self, image_paths, 
-                   depth_image_paths,
+    def __init__(self, image_paths,
                    gt_paths,
                    x_range,
                    y_range, 
@@ -26,7 +25,7 @@ class OpenLane_dataset_with_offset(Dataset):
         self.y_range = y_range
         self.meter_per_pixel = meter_per_pixel
         self.image_paths = image_paths
-        self.depth_image_paths = depth_image_paths
+        # self.depth_image_paths = depth_image_paths
         self.gt_paths = gt_paths
         self.cnt_list = []
         self.lane3d_thick = 1
@@ -138,10 +137,10 @@ class OpenLane_dataset_with_offset(Dataset):
     def get_seg_offset(self, idx, smooth=False):
         gt_path = os.path.join(self.gt_paths, self.cnt_list[idx][0], self.cnt_list[idx][1])
         image_path = os.path.join(self.image_paths, self.cnt_list[idx][0], self.cnt_list[idx][1].replace('json', 'jpg'))
-        dep_image_path = os.path.join(self.depth_image_paths, self.cnt_list[idx][0], self.cnt_list[idx][1].replace('json', 'png'))
+        # dep_image_path = os.path.join(self.depth_image_paths, self.cnt_list[idx][0], self.cnt_list[idx][1].replace('json', 'png'))
         
         image = cv2.imread(image_path)
-        dep_image = cv2.imread(dep_image_path, cv2.IMREAD_GRAYSCALE)
+        # dep_image = cv2.imread(dep_image_path, cv2.IMREAD_GRAYSCALE)
         
         image_h, image_w, _ = image.shape
         with open(gt_path, 'r') as f:
@@ -227,25 +226,25 @@ class OpenLane_dataset_with_offset(Dataset):
             trans_matrix = sc.get_matrix(height=0)
             image = cv2.warpPerspective(image, trans_matrix, self.vc_image_shape)
             image_gt = cv2.warpPerspective(image_gt, trans_matrix, self.vc_image_shape)
-            dep_image = cv2.warpPerspective(dep_image, trans_matrix, self.vc_image_shape)
+            # dep_image = cv2.warpPerspective(dep_image, trans_matrix, self.vc_image_shape)
             
-        return image, dep_image, image_gt, ipm_gt, offset_y_map, z_map, cam_extrinsics, cam_intrinsic
+        return image, image_gt, ipm_gt, offset_y_map, z_map, cam_extrinsics, cam_intrinsic
 
     def __getitem__(self, idx):
         '''
         :param idx:
         :return:
         '''
-        image, dep_image, image_gt, ipm_gt, offset_y_map, z_map, cam_extrinsics, cam_intrinsic = self.get_seg_offset(idx)
+        image, image_gt, ipm_gt, offset_y_map, z_map, cam_extrinsics, cam_intrinsic = self.get_seg_offset(idx)
         
         transformed = self.trans_image(image=image)
         image = transformed["image"]
         
-        transformed = self.trans_image(image=dep_image)
-        dep_image = transformed["image"]
+        # transformed = self.trans_image(image=dep_image)
+        # dep_image = transformed["image"]
 
-        combined_image = torch.cat((image, dep_image), dim=0)
-        image = combined_image
+        # combined_image = torch.cat((image, dep_image), dim=0)
+        # image = combined_image
         
         ''' 2d gt'''
         image_gt = cv2.resize(image_gt, (self.output2d_size[1], self.output2d_size[0]), interpolation=cv2.INTER_NEAREST)
@@ -266,11 +265,10 @@ class OpenLane_dataset_with_offset(Dataset):
 
 
 class OpenLane_dataset_with_offset_val(Dataset):
-    def __init__(self, image_paths, depth_val_image_path,
+    def __init__(self, image_paths,
                  gt_paths,
                  data_trans,
                  virtual_camera_config):
-        self.dep_paths = depth_val_image_path
         self.image_paths = image_paths
         self.gt_paths = gt_paths
 
@@ -297,7 +295,7 @@ class OpenLane_dataset_with_offset_val(Dataset):
         '''get image '''
         gt_path = os.path.join(self.gt_paths, self.cnt_list[idx][0], self.cnt_list[idx][1])
         image_path = os.path.join(self.image_paths, self.cnt_list[idx][0], self.cnt_list[idx][1].replace('json', 'jpg'))
-        dep_path = os.path.join(self.dep_paths, self.cnt_list[idx][0], self.cnt_list[idx][1].replace('json', 'png'))
+        # dep_path = os.path.join(self.dep_paths, self.cnt_list[idx][0], self.cnt_list[idx][1].replace('json', 'png'))
         
         image = cv2.imread(image_path)
         with open(gt_path, 'r') as f:
@@ -311,7 +309,7 @@ class OpenLane_dataset_with_offset_val(Dataset):
 
         cam_intrinsic = np.array(gt['intrinsic'])
 
-        depth_img = cv2.imread(dep_path, cv2.IMREAD_GRAYSCALE)
+        # depth_img = cv2.imread(dep_path, cv2.IMREAD_GRAYSCALE)
 
         if self.use_virtual_camera:
             sc = Standard_camera(self.vc_intrinsic, self.vc_extrinsics, self.vc_image_shape,
@@ -324,10 +322,10 @@ class OpenLane_dataset_with_offset_val(Dataset):
         transformed = self.trans_image(image=image)
         image = transformed["image"]
         
-        transformed = self.trans_image(image=depth_img)
-        depth_img = transformed['image']
+        # transformed = self.trans_image(image=depth_img)
+        # depth_img = transformed['image']
         
-        image = torch.cat((image, depth_img), dim=0)
+        # image = torch.cat((image, depth_img), dim=0)
         
         return image, self.cnt_list[idx]
 

@@ -1,7 +1,100 @@
 import torch
 import torchvision as tv
 from torch import nn
-from .dpt import DepthAnythingV2
+from .dpt import DepthAnythingV2, _make_fusion_block, _make_scratch
+import torch.nn.functional as F
+
+class DepthHead(nn.Module):
+    def __init__(
+        self, 
+        in_channels, 
+        features=256, 
+        use_bn=False, 
+        out_channels=[256, 512, 1024, 1024], 
+        use_clstoken=False
+    ):
+        super(DepthHead, self).__init__()
+        
+        self.use_clstoken = use_clstoken
+        
+        self.projects = nn.ModuleList([
+            nn.Conv2d(
+                in_channels=in_channels,
+                out_channels=out_channel,
+                kernel_size=1,
+                stride=1,
+                padding=0,
+            ) for out_channel in out_channels
+        ])
+        
+        self.resize_layers = nn.ModuleList([
+            nn.Upsample(scale_factor=8, mode='bilinear', align_corners=True),
+            nn.Upsample(scale_factor=4, mode='bilinear', align_corners=True),
+            nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True),
+            nn.Identity()
+        ])
+        
+        if use_clstoken:
+            self.readout_projects = nn.ModuleList()
+            for _ in range(len(self.projects)):
+                self.readout_projects.append(
+                    nn.Sequential(
+                        nn.Linear(2 * in_channels, in_channels),
+                        nn.GELU()))
+        
+        self.scratch = _make_scratch(
+            out_channels,
+            features,
+            groups=1,
+            expand=False,
+        )
+        
+        self.scratch.stem_transpose = None
+        
+        self.scratch.refinenet1 = _make_fusion_block(features, use_bn)
+        self.scratch.refinenet2 = _make_fusion_block(features, use_bn)
+        self.scratch.refinenet3 = _make_fusion_block(features, use_bn)
+        self.scratch.refinenet4 = _make_fusion_block(features, use_bn)
+        
+        head_features_1 = features
+        head_features_2 = 32
+        
+        self.scratch.output_conv1 = nn.Conv2d(head_features_1, head_features_1 // 2, kernel_size=3, stride=1, padding=1)
+        self.scratch.output_conv2 = nn.Sequential(
+            nn.Conv2d(head_features_1 // 2, head_features_2, kernel_size=3, stride=1, padding=1),
+            nn.ReLU(True),
+            nn.Conv2d(head_features_2, 1, kernel_size=1, stride=1, padding=0),
+            nn.ReLU(True),
+            nn.Identity(),
+        )
+    
+    def forward(self, out_features, patch_h, patch_w):
+        out = []
+        for i, x in enumerate(out_features):
+            # 修改此处，不再处理 ViT 的 cls_token
+            x = x  # x 已经是 CNN 的特征图
+
+            x = self.projects[i](x)
+            x = self.resize_layers[i](x)
+            out.append(x)
+        
+        layer_1, layer_2, layer_3, layer_4 = out
+        
+        layer_1_rn = self.scratch.layer1_rn(layer_1)
+        layer_2_rn = self.scratch.layer2_rn(layer_2)
+        layer_3_rn = self.scratch.layer3_rn(layer_3)
+        layer_4_rn = self.scratch.layer4_rn(layer_4)
+        
+        path_4 = self.scratch.refinenet4(layer_4_rn, size=layer_3_rn.shape[2:])        
+        path_3 = self.scratch.refinenet3(path_4, layer_3_rn, size=layer_2_rn.shape[2:])
+        path_2 = self.scratch.refinenet2(path_3, layer_2_rn, size=layer_1_rn.shape[2:])
+        path_1 = self.scratch.refinenet1(path_2, layer_1_rn)
+        
+        out = self.scratch.output_conv1(path_1)
+        out = F.interpolate(out, (int(patch_h * 14), int(patch_w * 14)), mode="bilinear", align_corners=True)
+        out = self.scratch.output_conv2(out)
+        
+        return out
 
 def naive_init_module(mod):
     for m in mod.modules():
@@ -303,7 +396,13 @@ class BEV_LaneDet(nn.Module):  # BEV-LaneDet
                 downsample=nn.Conv2d(512, 1024, kernel_size=3, stride=2, padding=1),
             )
         )
-
+        self.depth_head = DepthHead(
+            in_channels=512,  # BEV 特征图的通道数
+            features=256,
+            use_bn=False,
+            out_channels=[256, 256, 256, 256],  # 可以根据需要调整
+            use_clstoken=False
+        )
         self.s32transformer = FCTransform_((512, 18, 32), (256, 25, 5))
         self.s64transformer = FCTransform_((1024, 9, 16), (256, 25, 5))  
         self.lane_head = LaneHeadResidual_Instance_with_offset_z(bev_shape, input_channel=512)
@@ -316,10 +415,27 @@ class BEV_LaneDet(nn.Module):  # BEV-LaneDet
         img_s64 = self.down(img_s32)
         bev_32 = self.s32transformer(img_s32)
         bev_64 = self.s64transformer(img_s64)
-        bev = torch.cat([bev_64, bev_32], dim=1)
+        bev = torch.cat([bev_64, bev_32], dim=1)  # bev 形状: (batch_size, 512, 25, 5)
+
+        # 准备传递给 DepthHead 的特征图列表
+        # 这里，我们可以对 bev 进行不同尺度的下采样，生成四个特征图
+        bev_features = [
+            F.interpolate(bev, scale_factor=1/8, mode='bilinear', align_corners=True),
+            F.interpolate(bev, scale_factor=1/4, mode='bilinear', align_corners=True),
+            F.interpolate(bev, scale_factor=1/2, mode='bilinear', align_corners=True),
+            bev  # 原始尺寸
+        ]
+
+        # DepthHead 需要 patch 的高度和宽度
+        patch_h = bev_features[0].shape[2]
+        patch_w = bev_features[0].shape[3]
+
+        # 获取深度预测
+        depth_pred = self.depth_head(bev_features, patch_h, patch_w)
+
         if self.is_train:
             lane_output = self.lane_head(bev)
             lane_output_2d = self.lane_head_2d(img_s32)
-            return lane_output, lane_output_2d, img_s32, img_s64  # Return feature maps
+            return lane_output, lane_output_2d, img_s32, img_s64, depth_pred
         else:
-            return self.lane_head(bev)
+            return self.lane_head(bev), depth_pred
